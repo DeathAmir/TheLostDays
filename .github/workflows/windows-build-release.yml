@@ -1,0 +1,62 @@
+name: Windows Build and Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-build:
+    name: Build Windows distribution
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install WebAssembly build tools
+        run: dotnet workload install wasm-tools
+
+      - name: Restore
+        run: dotnet restore ./LostSpawns/LostSpawns.csproj
+
+      - name: Publish
+        run: dotnet publish ./LostSpawns/LostSpawns.csproj --no-restore --nologo --configuration Release --output ./publish -p:LostSpawnsAot=false
+
+      - name: Package Windows browser build
+        shell: pwsh
+        run: |
+          if (!(Test-Path "./publish/wwwroot/index.html")) {
+            throw "Publish output is missing wwwroot/index.html"
+          }
+          New-Item -ItemType Directory -Force -Path ./artifacts | Out-Null
+          Compress-Archive -Path ./publish/wwwroot/* -DestinationPath ./artifacts/TheLostDays-Windows-Web.zip -CompressionLevel Optimal
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheLostDays-Windows-Web
+          path: artifacts/TheLostDays-Windows-Web.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-build-${{ github.run_number }}
+          name: TheLostDays Windows Build ${{ github.run_number }}
+          body: |
+            Automated Windows-hosted .NET 10 WebAssembly build.
+
+            Download **TheLostDays-Windows-Web.zip**, extract it, and serve the contents with a local web server. This is the browser/WebAssembly distribution, not a native Windows executable.
+          files: artifacts/TheLostDays-Windows-Web.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
