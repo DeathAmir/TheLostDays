@@ -17,6 +17,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout VoxelEngine source
+        uses: actions/checkout@v4
+        with:
+          repository: LostBeard/SpawnDev.VoxelEngine
+          ref: master
+          path: dependencies/SpawnDev.VoxelEngine
+
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
