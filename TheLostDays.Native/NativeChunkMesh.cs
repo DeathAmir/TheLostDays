@@ -43,7 +43,8 @@ internal sealed unsafe class NativeChunkMesh : IDisposable
             colors[c + 3] = 255;
         }
 
-        Raylib.UploadMesh(&_mesh, false);
+        fixed (Mesh* mesh = &_mesh)
+            Raylib.UploadMesh(mesh, false);
         _uploaded = true;
     }
 

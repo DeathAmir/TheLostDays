@@ -31,7 +31,6 @@ internal sealed class NativeGame : IDisposable
     private float _jumpVelocity;
     private bool _grounded = true;
     private float _saveFlash;
-    private int _fps;
 
     public NativeGame()
     {
@@ -184,7 +183,7 @@ internal sealed class NativeGame : IDisposable
         if (!Raylib.IsMouseButtonPressed(MouseButton.Left))
             return;
 
-        Ray ray = Raylib.GetMouseRay(new Vector2(Raylib.GetScreenWidth() * 0.5f, Raylib.GetScreenHeight() * 0.5f), _camera);
+        Ray ray = Raylib.GetScreenToWorldRay(new Vector2(Raylib.GetScreenWidth() * 0.5f, Raylib.GetScreenHeight() * 0.5f), _camera);
         for (float distance = 0.25f; distance <= 6f; distance += 0.2f)
         {
             Vector3 p = ray.Position + ray.Direction * distance;
@@ -267,7 +266,7 @@ internal sealed class NativeGame : IDisposable
     private void Draw()
     {
         float daylight = Math.Clamp(MathF.Sin((_time.DayFraction - 0.25f) * MathF.Tau) * 0.5f + 0.5f, 0.08f, 1f);
-        var sky = new Color((byte)(14 + 86 * daylight), (byte)(22 + 112 * daylight), (byte)(34 + 145 * daylight), 255);
+        var sky = new Color((int)(14 + 86 * daylight), (int)(22 + 112 * daylight), (int)(34 + 145 * daylight), 255);
 
         Raylib.BeginDrawing();
         Raylib.ClearBackground(sky);
@@ -302,7 +301,7 @@ internal sealed class NativeGame : IDisposable
             Raylib.DrawText(names[i], 24, y, 12, Color.RayWhite);
             Raylib.DrawRectangle(105, y + 2, 170, 12, new Color(28, 34, 40, 230));
             int color = colors[i];
-            Raylib.DrawRectangle(105, y + 2, (int)(170 * Math.Clamp(values[i], 0, 1)), 12, new Color((byte)(color >> 16), (byte)(color >> 8), (byte)color, 255));
+            Raylib.DrawRectangle(105, y + 2, (int)(170 * Math.Clamp(values[i], 0, 1)), 12, new Color((int)((color >> 16) & 255), (int)((color >> 8) & 255), (int)(color & 255), 255));
         }
 
         for (int i = 0; i < InventoryService.HotbarSize; i++)
