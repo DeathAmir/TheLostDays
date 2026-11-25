@@ -1,17 +1,16 @@
 using System.Buffers.Binary;
-using System.Numerics;
-using Raylib_cs;
+using LostSpawns.Models;
+using LostSpawns.Rendering;
 
 namespace TheLostDays.Native;
-
-internal readonly record struct TerrainTriangle(Vector3 A, Vector3 B, Vector3 C, Color Color);
 
 internal sealed class NativeWorld
 {
     public const int SeaLevel = 64;
+    private const float CellSize = 15.62f;
     private readonly short[]? _heightmap;
     private readonly int _mapSize;
-    private const float CellSize = 15.62f;
+    private readonly TerrainGenerator _fallback = new(42);
 
     private NativeWorld(short[]? heightmap, int mapSize)
     {
@@ -21,135 +20,144 @@ internal sealed class NativeWorld
 
     public static NativeWorld Load()
     {
-        string[] paths =
-        [
-            Path.Combine(AppContext.BaseDirectory, "Data", "deer_isle.heightmap"),
-            Path.Combine(AppContext.BaseDirectory, "deer_isle.heightmap"),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "LostSpawns", "wwwroot", "maps", "deer_isle.heightmap"))
-        ];
+        string path = Path.Combine(AppContext.BaseDirectory, "Data", "deer_isle.heightmap");
+        if (!File.Exists(path))
+            return new NativeWorld(null, 0);
 
-        foreach (string path in paths)
-        {
-            if (!File.Exists(path)) continue;
-            byte[] bytes = File.ReadAllBytes(path);
-            int samples = bytes.Length / 2;
-            int size = (int)Math.Sqrt(samples);
-            if (size * size != samples) continue;
+        byte[] bytes = File.ReadAllBytes(path);
+        int count = bytes.Length / 2;
+        int size = (int)Math.Sqrt(count);
+        if (size * size != count)
+            throw new InvalidDataException("Deer Isle heightmap is not a square Int16 map.");
 
-            var values = new short[samples];
-            for (int i = 0; i < samples; i++)
-                values[i] = BinaryPrimitives.ReadInt16LittleEndian(bytes.AsSpan(i * 2, 2));
+        var map = new short[count];
+        for (int i = 0; i < count; i++)
+            map[i] = BinaryPrimitives.ReadInt16LittleEndian(bytes.AsSpan(i * 2, 2));
 
-            ApplyBathymetry(values, size);
-            return new NativeWorld(values, size);
-        }
-
-        return new NativeWorld(null, 0);
+        ApplyBathymetry(map, size);
+        return new NativeWorld(map, size);
     }
 
     public (float X, float Z) FindSpawn()
     {
-        if (_heightmap == null) return (0, 0);
-        if (GetHeight(0, 0) > SeaLevel + 4) return (0, 0);
+        if (_heightmap == null)
+            return (0, 0);
 
-        for (int search = 1; search < 200; search += 4)
-        {
-            float candidate = search * 16f;
-            if (GetHeight(candidate, candidate) > SeaLevel + 4)
-                return (candidate, candidate);
-        }
+        if (GetHeight(0, 0) > SeaLevel + 4)
+            return (0, 0);
 
-        for (int radius = 64; radius <= 4096; radius += 64)
+        for (int radius = 64; radius <= 7000; radius += 64)
         {
-            for (int angle = 0; angle < 360; angle += 15)
+            for (int angle = 0; angle < 360; angle += 8)
             {
-                float radians = angle * MathF.PI / 180f;
-                float x = MathF.Cos(radians) * radius;
-                float z = MathF.Sin(radians) * radius;
+                float a = angle * MathF.PI / 180f;
+                float x = MathF.Cos(a) * radius;
+                float z = MathF.Sin(a) * radius;
                 if (GetHeight(x, z) > SeaLevel + 4)
                     return (x, z);
             }
         }
 
-        return (0, 0);
+        throw new InvalidDataException("No land spawn was found in the Deer Isle heightmap.");
     }
 
     public int GetHeight(float worldX, float worldZ)
     {
         if (_heightmap == null)
-        {
-            float broad = Noise(worldX * 0.0015f, worldZ * 0.0015f);
-            float detail = Noise(worldX * 0.009f + 71, worldZ * 0.009f - 23);
-            return Math.Clamp(79 + (int)(broad * 25 + detail * 4), 4, 180);
-        }
+            return _fallback.GetHeight(worldX, worldZ) + 64;
 
         float mapMeters = _mapSize * CellSize;
         float gx = Math.Clamp((worldX + mapMeters * 0.5f) / CellSize, 0, _mapSize - 1.001f);
         float gz = Math.Clamp((worldZ + mapMeters * 0.5f) / CellSize, 0, _mapSize - 1.001f);
-        int x = Math.Clamp((int)gx, 0, _mapSize - 2);
-        int z = Math.Clamp((int)gz, 0, _mapSize - 2);
+        int x = Math.Clamp((int)MathF.Floor(gx), 0, _mapSize - 2);
+        int z = Math.Clamp((int)MathF.Floor(gz), 0, _mapSize - 2);
         float fx = gx - x;
         float fz = gz - z;
         float a = _heightmap[z * _mapSize + x];
         float b = _heightmap[z * _mapSize + x + 1];
         float c = _heightmap[(z + 1) * _mapSize + x];
         float d = _heightmap[(z + 1) * _mapSize + x + 1];
-        return SeaLevel + (int)MathF.Round(
+        return Math.Clamp(SeaLevel + (int)MathF.Round(
             a * (1 - fx) * (1 - fz) +
             b * fx * (1 - fz) +
             c * (1 - fx) * fz +
-            d * fx * fz);
+            d * fx * fz), 1, ChunkData.Height - 2);
     }
 
-    public List<TerrainTriangle> BuildMesh(float centerX, float centerZ, int radius, int step)
+    public ChunkData GenerateChunk(int chunkX, int chunkZ)
     {
-        var triangles = new List<TerrainTriangle>((radius * 2 / step) * (radius * 2 / step) * 2);
-        int minX = (int)MathF.Floor((centerX - radius) / step) * step;
-        int minZ = (int)MathF.Floor((centerZ - radius) / step) * step;
-        int maxX = (int)MathF.Ceiling((centerX + radius) / step) * step;
-        int maxZ = (int)MathF.Ceiling((centerZ + radius) / step) * step;
+        if (_heightmap == null)
+            return _fallback.GenerateChunk(chunkX, chunkZ);
 
-        for (int z = minZ; z < maxZ; z += step)
-        for (int x = minX; x < maxX; x += step)
+        var chunk = new ChunkData(chunkX, chunkZ);
+        for (int x = 0; x < ChunkData.SizeXZ; x++)
+        for (int z = 0; z < ChunkData.SizeXZ; z++)
         {
-            int h00 = GetHeight(x, z);
-            int h10 = GetHeight(x + step, z);
-            int h01 = GetHeight(x, z + step);
-            int h11 = GetHeight(x + step, z + step);
-            int average = (h00 + h10 + h01 + h11) / 4;
-            if (average <= SeaLevel) continue;
-
-            var color = TerrainColor(average, h00, h10, h01, h11);
-            var a = new Vector3(x, h00, z);
-            var b = new Vector3(x, h01, z + step);
-            var c = new Vector3(x + step, h11, z + step);
-            var d = new Vector3(x + step, h10, z);
-
-            triangles.Add(new TerrainTriangle(a, b, c, color));
-            triangles.Add(new TerrainTriangle(a, c, d, color));
+            int wx = chunkX * ChunkData.SizeXZ + x;
+            int wz = chunkZ * ChunkData.SizeXZ + z;
+            int h = GetHeight(wx, wz);
+            int slope = Math.Max(
+                Math.Max(Math.Abs(h - GetHeight(wx, wz - 1)), Math.Abs(h - GetHeight(wx, wz + 1))),
+                Math.Max(Math.Abs(h - GetHeight(wx + 1, wz)), Math.Abs(h - GetHeight(wx - 1, wz))));
+            FillColumn(chunk, x, z, wx, wz, h, slope);
         }
 
-        return triangles;
+        Vegetation.Place(chunk, chunkX, chunkZ, SurfaceAt, SeaLevel, 42);
+        Structures.Place(chunk, chunkX, chunkZ, SurfaceAt, SeaLevel, 42);
+        return chunk;
     }
 
-    private static Color TerrainColor(int height, int h00, int h10, int h01, int h11)
+    public (int Y, BlockType Type) SurfaceAt(int wx, int wz)
     {
+        int h = GetHeight(wx, wz);
         int slope = Math.Max(
-            Math.Max(Math.Abs(h00 - h10), Math.Abs(h00 - h01)),
-            Math.Max(Math.Abs(h11 - h10), Math.Abs(h11 - h01)));
+            Math.Max(Math.Abs(h - GetHeight(wx, wz - 1)), Math.Abs(h - GetHeight(wx, wz + 1))),
+            Math.Max(Math.Abs(h - GetHeight(wx + 1, wz)), Math.Abs(h - GetHeight(wx - 1, wz))));
+        return (h, SurfaceBlock(h, slope, wx, wz));
+    }
 
-        if (height <= SeaLevel + 2) return new Color(194, 174, 119, 255);
-        if (slope >= 5 || height >= SeaLevel + 52) return new Color(112, 116, 105, 255);
-        if (height <= SeaLevel + 7) return new Color(194, 177, 126, 255);
-        if (height >= SeaLevel + 38) return new Color(105, 111, 83, 255);
-        return new Color(74, 112, 65, 255);
+    public static int FloorDiv(int value, int divisor) => (int)MathF.Floor(value / (float)divisor);
+
+    private static void FillColumn(ChunkData chunk, int x, int z, int wx, int wz, int surface, int slope)
+    {
+        surface = Math.Clamp(surface, 1, ChunkData.Height - 2);
+        BlockType top = SurfaceBlock(surface, slope, wx, wz);
+        BlockType under = top switch
+        {
+            BlockType.Sand or BlockType.Gravel => BlockType.Sand,
+            BlockType.Granite => BlockType.Granite,
+            _ => BlockType.Dirt
+        };
+
+        for (int y = 0; y < ChunkData.Height; y++)
+        {
+            BlockType block;
+            if (y > surface) block = y <= SeaLevel ? BlockType.Water : BlockType.Air;
+            else if (y == surface) block = top;
+            else if (y > surface - 2 && slope >= 4) block = BlockType.Granite;
+            else if (y > surface - 4) block = under;
+            else block = BlockType.Stone;
+            chunk.SetBlock(x, y, z, block);
+        }
+    }
+
+    private static BlockType SurfaceBlock(int y, int slope, int wx, int wz)
+    {
+        int above = y - SeaLevel;
+        if (y <= SeaLevel)
+            return SeaLevel - y > 2 || Vegetation.ShoreGravel(wx, wz) > 0.5f ? BlockType.Gravel : BlockType.Sand;
+        if (above <= 3)
+            return slope >= 3 ? BlockType.Granite : Vegetation.ShoreGravel(wx, wz) > 0.45f ? BlockType.Gravel : BlockType.Sand;
+        if (slope >= 4 || above > 55) return BlockType.Granite;
+        if (above > 45) return slope >= 2 ? BlockType.Granite : BlockType.Dirt;
+        if (above > 6 && Vegetation.BarePatch(wx, wz) > 0.8f && slope <= 1) return BlockType.Dirt;
+        return BlockType.Grass;
     }
 
     private static void ApplyBathymetry(short[] map, int size)
     {
         const int inf = 60000;
         var distance = new ushort[map.Length];
-
         for (int i = 0; i < map.Length; i++)
             distance[i] = map[i] > 0 ? (ushort)0 : (ushort)inf;
 
@@ -187,30 +195,8 @@ internal sealed class NativeWorld
         {
             if (map[i] > 0) continue;
             float meters = distance[i] / 3f * CellSize;
-            float relief = (Hash(i % size, i / size) % 1000) / 1000f;
-            map[i] = (short)-(int)Math.Clamp(MathF.Round(1f + meters * 0.055f + (relief - 0.5f) * 1.4f), 1f, 28f);
+            float relief = (TileNoise.Rand(i % size, i / size, 9001) - 0.5f) * 1.4f;
+            map[i] = (short)-(int)Math.Clamp(MathF.Round(1f + meters * 0.055f + relief), 1f, 28f);
         }
-    }
-
-    public static uint Hash(int x, int z)
-    {
-        uint h = unchecked((uint)(x * 374761393 + z * 668265263 + 42 * 1442695041));
-        h = (h ^ (h >> 13)) * 1274126177;
-        return h ^ (h >> 16);
-    }
-
-    private static float Noise(float x, float z)
-    {
-        int x0 = (int)MathF.Floor(x);
-        int z0 = (int)MathF.Floor(z);
-        float fx = x - x0;
-        float fz = z - z0;
-        fx = fx * fx * (3 - 2 * fx);
-        fz = fz * fz * (3 - 2 * fz);
-        float a = Hash(x0, z0) / (float)uint.MaxValue;
-        float b = Hash(x0 + 1, z0) / (float)uint.MaxValue;
-        float c = Hash(x0, z0 + 1) / (float)uint.MaxValue;
-        float d = Hash(x0 + 1, z0 + 1) / (float)uint.MaxValue;
-        return ((a + (b - a) * fx) * (1 - fz) + (c + (d - c) * fx) * fz) * 2 - 1;
     }
 }

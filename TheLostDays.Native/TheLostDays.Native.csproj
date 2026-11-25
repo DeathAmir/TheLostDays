@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <InvariantGlobalization>true</InvariantGlobalization>
     <AssemblyName>TheLostDays</AssemblyName>
     <RootNamespace>TheLostDays.Native</RootNamespace>
@@ -12,6 +13,19 @@
     <PackageReference Include="Raylib-cs" Version="8.1.0" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../LostSpawns/Models/BlockType.cs" Link="GameCore/BlockType.cs" />
+    <Compile Include="../LostSpawns/Models/ChunkData.cs" Link="GameCore/ChunkData.cs" />
+    <Compile Include="../LostSpawns/Rendering/PerlinNoise.cs" Link="GameCore/PerlinNoise.cs" />
+    <Compile Include="../LostSpawns/Rendering/TileNoise.cs" Link="GameCore/TileNoise.cs" />
+    <Compile Include="../LostSpawns/Rendering/Vegetation.cs" Link="GameCore/Vegetation.cs" />
+    <Compile Include="../LostSpawns/Rendering/Structures.cs" Link="GameCore/Structures.cs" />
+    <Compile Include="../LostSpawns/Rendering/TerrainGenerator.cs" Link="GameCore/TerrainGenerator.cs" />
+    <Compile Include="../LostSpawns/Rendering/VoxelMesher.cs" Link="GameCore/VoxelMesher.cs" />
+    <Compile Include="../LostSpawns/Services/PlayerStatsService.cs" Link="GameCore/PlayerStatsService.cs" />
+    <Compile Include="../LostSpawns/Services/InventoryService.cs" Link="GameCore/InventoryService.cs" />
+    <Compile Include="../LostSpawns/Services/CraftingService.cs" Link="GameCore/CraftingService.cs" />
+    <Compile Include="../LostSpawns/Services/WeatherService.cs" Link="GameCore/WeatherService.cs" />
+    <Compile Include="../LostSpawns/Services/WorldTimeService.cs" Link="GameCore/WorldTimeService.cs" />
     <Content Include="../LostSpawns/wwwroot/maps/deer_isle.heightmap" Link="Data/deer_isle.heightmap" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../LostSpawns/wwwroot/maps/deer_isle.heightmap')" />
   </ItemGroup>
 </Project>
