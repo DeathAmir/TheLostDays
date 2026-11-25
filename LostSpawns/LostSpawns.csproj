@@ -25,7 +25,7 @@
 		<PackageReference Include="SpawnDev.SpawnJS.Blazor" Version="3.0.7" />
 		<PackageReference Include="SpawnDev.SpawnJS.Cryptography" Version="2.1.1" />
 		<PackageReference Include="SpawnDev.GameUI" Version="1.1.0" />
-		<ProjectReference Include="..\\dependencies\\SpawnDev.VoxelEngine\\SpawnDev.VoxelEngine\\SpawnDev.VoxelEngine.csproj" />
+		<ProjectReference Include="../dependencies/SpawnDev.VoxelEngine/SpawnDev.VoxelEngine/SpawnDev.VoxelEngine.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -38,7 +38,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ServiceWorker Include="wwwroot\\service-worker.js" PublishedContent="wwwroot\\service-worker.published.js" />
+		<ServiceWorker Include="wwwroot/service-worker.js" PublishedContent="wwwroot/service-worker.published.js" />
 	</ItemGroup>
 
 </Project>
