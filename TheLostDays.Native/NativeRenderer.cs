@@ -60,7 +60,7 @@ internal sealed class NativeRenderer : IDisposable
 
         GL.BindVertexArray(_vao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-        GL.BufferData(BufferTarget.ArrayBuffer, mesh.Length * sizeof(float), mesh, BufferUsageHint.StaticDraw);
+        GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(mesh.Length * sizeof(float)), mesh, BufferUsageHint.StaticDraw);
         int stride = 9 * sizeof(float);
         GL.EnableVertexAttribArray(0);
         GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, 0);
@@ -81,7 +81,7 @@ internal sealed class NativeRenderer : IDisposable
         var eye = new Vector3(position.X, position.Y, position.Z);
         var view = Matrix4.LookAt(eye, eye + front, Vector3.UnitY);
         var projection = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(72f), width / (float)height, 0.1f, 1400f);
-        var mvp = view * projection;
+        var mvp = projection * view;
 
         GL.UseProgram(_program);
         GL.UniformMatrix4(_mvpLocation, false, ref mvp);
