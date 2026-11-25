@@ -1,18 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <InvariantGlobalization>true</InvariantGlobalization>
     <AssemblyName>TheLostDays</AssemblyName>
     <RootNamespace>TheLostDays.Native</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="SDL3-CS" Version="3.4.20" />
-    <PackageReference Include="SDL3-CS.Windows" Version="3.4.20" />
-    <PackageReference Include="OpenTK" Version="4.9.4" />
+    <PackageReference Include="Raylib-cs" Version="8.1.0" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="../LostSpawns/wwwroot/maps/deer_isle.heightmap" Link="Data/deer_isle.heightmap" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../LostSpawns/wwwroot/maps/deer_isle.heightmap')" />

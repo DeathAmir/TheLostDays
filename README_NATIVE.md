@@ -1,12 +1,12 @@
 # The Lost Days — Native Windows Port
 
-The native client is a separate .NET 10 desktop application. It does not host Blazor, WebAssembly, JavaScript, WebView, or a browser.
+The native client is a standalone .NET 10 desktop game. It does not host Blazor, WebAssembly, JavaScript, WebView, or a browser.
 
-## Stack
+## Native stack
 
-- SDL3-CS for the native window, events, and input.
-- OpenTK OpenGL 3.3 Core for 3D rendering.
+- Raylib-cs 8.1.0 for the native window, input, 3D camera, and rendering.
 - .NET 10 self-contained Windows x64 publishing.
+- The existing Deer Isle raw Int16 heightmap is reused directly when available.
 
 ## Build
 
@@ -16,15 +16,15 @@ dotnet run --project .\TheLostDays.Native\TheLostDays.Native.csproj
 dotnet publish .\TheLostDays.Native\TheLostDays.Native.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
-## Current native milestone
+## Native milestone
 
-The first native slice creates an SDL3 desktop window and OpenGL context, loads the existing Deer Isle elevation data when it is present, builds a terrain mesh, and supports first-person WASD movement, sprint, and arrow-key camera control. When the heightmap is unavailable, it falls back to deterministic procedural terrain.
+The current native slice uses Raylib's higher-level 3D API instead of a hand-written SDL/OpenGL renderer. It finds a dry-land spawn on Deer Isle, draws terrain and water, adds deterministic trees, and supports first-person WASD movement, sprint, and mouse look. It falls back to procedural terrain if the heightmap is unavailable.
 
-This is the foundation of the port, not a claim that every browser feature has already been migrated. Survival systems, inventory, crafting, wildlife, weather, audio, saves, HUD, and VR still need native implementations and integration. The existing browser project remains untouched.
+This is an early native gameplay foundation. Inventory, crafting, survival stats, wildlife, weather, audio, save/load, detailed voxel textures, multiplayer, and the full HUD still need native implementations. The original browser branch remains unchanged.
 
 ## Controls
 
 - WASD: move
 - Shift: sprint
-- Arrow keys: look
+- Mouse: look
 - Escape: quit
